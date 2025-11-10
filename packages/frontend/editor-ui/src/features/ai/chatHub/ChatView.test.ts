@@ -146,6 +146,7 @@ describe('ChatView', () => {
 			}),
 		);
 		vi.mocked(chatApi.fetchConversationsApi).mockResolvedValue([]);
+		vi.mocked(chatApi.updateConversationApi).mockClear();
 	});
 
 	describe('Initial rendering', () => {
@@ -505,8 +506,103 @@ describe('ChatView', () => {
 	});
 
 	describe('Model selection', () => {
-		it.todo('updates session model when user selects different model in existing conversation');
-		it.todo('saves to localStorage when user selects model in new session');
+		it('updates session model when user selects different model in existing conversation', async () => {
+			const user = userEvent.setup();
+
+			mockRoute.params = { id: 'existing-session-123' };
+
+			vi.mocked(chatApi.fetchChatModelsApi).mockResolvedValue(
+				createMockModelsResponse({
+					'custom-agent': {
+						models: [
+							createMockAgent({
+								name: 'Custom Agent 1',
+								model: { provider: 'custom-agent', agentId: 'agent-1' },
+							}),
+						],
+					},
+					openai: {
+						models: [
+							createMockAgent({
+								name: 'GPT-4',
+								model: { provider: 'openai', model: 'gpt-4' },
+							}),
+						],
+					},
+				}),
+			);
+
+			vi.mocked(chatApi.fetchSingleConversationApi).mockResolvedValue(
+				createMockConversationResponse({
+					session: createMockSession({
+						id: 'existing-session-123',
+						provider: 'custom-agent',
+						agentId: 'agent-1',
+						agentName: 'Custom Agent 1',
+					}),
+				}),
+			);
+
+			vi.mocked(chatApi.updateConversationApi).mockResolvedValue(
+				createMockConversationResponse({
+					session: createMockSession({
+						id: 'existing-session-123',
+						provider: 'openai',
+						model: 'gpt-4',
+					}),
+				}),
+			);
+
+			const rendered = renderComponent({ pinia });
+
+			await user.click(await rendered.findByRole('button', { name: /Custom Agent 1/i }));
+			await user.hover(await rendered.findByText('OpenAI'));
+			await user.click(await rendered.findByText('GPT-4'));
+
+			await rendered.findByRole('button', { name: /GPT-4/i });
+			expect(chatApi.updateConversationApi).toHaveBeenCalledWith(
+				expect.anything(),
+				'existing-session-123',
+				{ provider: 'openai', model: 'gpt-4' },
+			);
+		});
+
+		it('saves to localStorage when user selects model in new session', async () => {
+			const user = userEvent.setup();
+
+			vi.mocked(chatApi.fetchChatModelsApi).mockResolvedValue(
+				createMockModelsResponse({
+					openai: {
+						models: [
+							createMockAgent({
+								name: 'GPT-4',
+								model: { provider: 'openai', model: 'gpt-4' },
+							}),
+						],
+					},
+					anthropic: {
+						models: [
+							createMockAgent({
+								name: 'Claude 3',
+								model: { provider: 'anthropic', model: 'claude-3' },
+							}),
+						],
+					},
+				}),
+			);
+
+			const rendered = renderComponent({ pinia });
+
+			await user.click(await rendered.findByRole('button', { name: /GPT-4/i }));
+			await user.hover(await rendered.findByText('Anthropic'));
+			await user.click(await rendered.findByText('Claude 3'));
+
+			await rendered.findByRole('button', { name: /Claude 3/i });
+			expect(chatApi.updateConversationApi).not.toHaveBeenCalled();
+			expect(localStorage.getItem('user-123_N8N_CHAT_HUB_SELECTED_MODEL')).toBe(
+				JSON.stringify({ provider: 'anthropic', model: 'claude-3' }),
+			);
+		});
 	});
 
 	describe('Message actions', () => {
