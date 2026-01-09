@@ -2,10 +2,14 @@ import { Service } from '@n8n/di';
 import { DataSource, EntityManager, Repository } from '@n8n/typeorm';
 
 import { ChatHubAgent, IChatHubAgent } from './chat-hub-agent.entity';
+import { ChatHubKnowledgeItemRepository } from './chat-hub-knowledge-item.repository';
 
 @Service()
 export class ChatHubAgentRepository extends Repository<ChatHubAgent> {
-	constructor(dataSource: DataSource) {
+	constructor(
+		dataSource: DataSource,
+		private readonly knowledgeItemRepository: ChatHubKnowledgeItemRepository,
+	) {
 		super(ChatHubAgent, dataSource.manager);
 	}
 
@@ -17,6 +21,7 @@ export class ChatHubAgentRepository extends Repository<ChatHubAgent> {
 		await em.insert(ChatHubAgent, agent);
 		return await em.findOneOrFail(ChatHubAgent, {
 			where: { id: agent.id },
+			relations: ['knowledgeItems'],
 		});
 	}
 
@@ -25,6 +30,7 @@ export class ChatHubAgentRepository extends Repository<ChatHubAgent> {
 		await em.update(ChatHubAgent, { id }, updates);
 		return await em.findOneOrFail(ChatHubAgent, {
 			where: { id },
+			relations: ['knowledgeItems'],
 		});
 	}
 
@@ -37,6 +43,7 @@ export class ChatHubAgentRepository extends Repository<ChatHubAgent> {
 		return await this.find({
 			where: { ownerId: userId },
 			order: { createdAt: 'DESC' },
+			relations: ['knowledgeItems'],
 		});
 	}
 
@@ -44,6 +51,31 @@ export class ChatHubAgentRepository extends Repository<ChatHubAgent> {
 		const em = trx ?? this.manager;
 		return await em.findOne(ChatHubAgent, {
 			where: { id, ownerId: userId },
+			relations: ['knowledgeItems'],
 		});
+	}
+
+	async setKnowledgeItems(
+		agentId: string,
+		userId: string,
+		knowledgeItemIds: string[],
+		trx?: EntityManager,
+	) {
+		const em = trx ?? this.manager;
+		const agent = await em.findOneOrFail(ChatHubAgent, {
+			where: { id: agentId, ownerId: userId },
+			relations: ['knowledgeItems'],
+		});
+
+		agent.knowledgeItems = await this.knowledgeItemRepository.getManyByIdsAndUserId(
+			knowledgeItemIds,
+			userId,
+			trx,
+		);
+
+		// Save will update the junction table
+		await em.save(agent);
+
+		return agent;
 	}
 }

@@ -141,6 +141,7 @@ import IconLucideInfo from '~icons/lucide/info';
 import IconLucideKeyRound from '~icons/lucide/key-round';
 import IconLucideLanguages from '~icons/lucide/languages';
 import IconLucideLayers from '~icons/lucide/layers';
+import IconLucideLibrary from '~icons/lucide/library';
 import IconLucideLightbulb from '~icons/lucide/lightbulb';
 import IconLucideLink from '~icons/lucide/link';
 import IconLucideList from '~icons/lucide/list';
@@ -590,6 +591,7 @@ export const updatedIconSet = {
 	'key-round': IconLucideKeyRound,
 	languages: IconLucideLanguages,
 	layers: IconLucideLayers,
+	library: IconLucideLibrary,
 	lightbulb: IconLucideLightbulb,
 	link: IconLucideLink,
 	list: IconLucideList,

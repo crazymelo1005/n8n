@@ -75,8 +75,15 @@ export class ChatHubAgentService {
 			tools: data.tools,
 		});
 
+		// Set knowledge items if provided
+		if (data.knowledgeItemIds && data.knowledgeItemIds.length > 0) {
+			await this.chatAgentRepository.setKnowledgeItems(id, user.id, data.knowledgeItemIds);
+		}
+
 		this.logger.debug(`Chat agent created: ${id} by user ${user.id}`);
-		return agent;
+
+		// Reload agent with knowledge items
+		return (await this.chatAgentRepository.getOneById(id, user.id)) ?? agent;
 	}
 
 	async updateAgent(
@@ -108,8 +115,15 @@ export class ChatHubAgentService {
 
 		const agent = await this.chatAgentRepository.updateAgent(id, updateData);
 
+		// Update knowledge items if provided
+		if (updates.knowledgeItemIds !== undefined) {
+			await this.chatAgentRepository.setKnowledgeItems(id, user.id, updates.knowledgeItemIds);
+		}
+
 		this.logger.debug(`Chat agent updated: ${id} by user ${user.id}`);
-		return agent;
+
+		// Reload agent with knowledge items
+		return (await this.chatAgentRepository.getOneById(id, user.id)) ?? agent;
 	}
 
 	async deleteAgent(id: string, userId: string): Promise<void> {

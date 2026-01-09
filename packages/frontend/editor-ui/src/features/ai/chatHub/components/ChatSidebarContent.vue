@@ -9,6 +9,7 @@ import {
 	CHAT_VIEW,
 	CHAT_WORKFLOW_AGENTS_VIEW,
 	CHAT_PERSONAL_AGENTS_VIEW,
+	CHAT_KNOWLEDGE_VIEW,
 } from '@/features/ai/chatHub/constants';
 import { type IMenuItem, N8nMenuItem, N8nScrollArea, N8nText } from '@n8n/design-system';
 import { computed, onMounted, ref } from 'vue';
@@ -84,6 +85,17 @@ const workflowAgents = computed<IMenuItem>(() => ({
 	route: {
 		to: {
 			name: CHAT_WORKFLOW_AGENTS_VIEW,
+		},
+	},
+}));
+
+const knowledge = computed<IMenuItem>(() => ({
+	id: 'knowledge',
+	label: 'Knowledge',
+	icon: 'library',
+	route: {
+		to: {
+			name: CHAT_KNOWLEDGE_VIEW,
 		},
 	},
 }));
@@ -172,6 +184,11 @@ onMounted(() => {
 				:item="workflowAgents"
 				:compact="isCollapsed"
 				:active="route.name === CHAT_WORKFLOW_AGENTS_VIEW"
+			/>
+			<N8nMenuItem
+				:item="knowledge"
+				:compact="isCollapsed"
+				:active="route.name === CHAT_KNOWLEDGE_VIEW"
 			/>
 		</div>
 		<N8nScrollArea as-child type="scroll">

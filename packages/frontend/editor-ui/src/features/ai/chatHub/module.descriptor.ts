@@ -4,7 +4,9 @@ import {
 	CHAT_CONVERSATION_VIEW,
 	CHAT_WORKFLOW_AGENTS_VIEW,
 	CHAT_PERSONAL_AGENTS_VIEW,
+	CHAT_KNOWLEDGE_VIEW,
 	TOOLS_SELECTOR_MODAL_KEY,
+	KNOWLEDGE_ITEMS_SELECTOR_MODAL_KEY,
 	AGENT_EDITOR_MODAL_KEY,
 	CHAT_CREDENTIAL_SELECTOR_MODAL_KEY,
 	CHAT_MODEL_BY_ID_SELECTOR_MODAL_KEY,
@@ -19,6 +21,7 @@ const ChatWorkflowAgentsView = async () =>
 	await import('@/features/ai/chatHub/ChatWorkflowAgentsView.vue');
 const ChatPersonalAgentsView = async () =>
 	await import('@/features/ai/chatHub/ChatPersonalAgentsView.vue');
+const ChatKnowledgeView = async () => await import('@/features/ai/chatHub/ChatKnowledgeView.vue');
 const SettingsChatHubView = async () =>
 	await import('@/features/ai/chatHub/SettingsChatHubView.vue');
 
@@ -31,6 +34,17 @@ export const ChatModule: FrontendModuleDescription = {
 		{
 			key: TOOLS_SELECTOR_MODAL_KEY,
 			component: async () => await import('./components/ToolsSelectorModal.vue'),
+			initialState: {
+				open: false,
+				data: {
+					selected: [],
+					onConfirm: () => {},
+				},
+			},
+		},
+		{
+			key: KNOWLEDGE_ITEMS_SELECTOR_MODAL_KEY,
+			component: async () => await import('./components/KnowledgeItemsSelectorModal.vue'),
 			initialState: {
 				open: false,
 				data: {
@@ -136,6 +150,20 @@ export const ChatModule: FrontendModuleDescription = {
 			name: CHAT_PERSONAL_AGENTS_VIEW,
 			path: '/home/chat/personal-agents',
 			component: ChatPersonalAgentsView,
+			meta: {
+				layout: 'chat',
+				middleware: ['authenticated'],
+				getProperties() {
+					return {
+						feature: 'chat-hub',
+					};
+				},
+			},
+		},
+		{
+			name: CHAT_KNOWLEDGE_VIEW,
+			path: '/home/chat/knowledge',
+			component: ChatKnowledgeView,
 			meta: {
 				layout: 'chat',
 				middleware: ['authenticated'],

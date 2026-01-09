@@ -14,6 +14,8 @@ import type {
 	ChatHubCreateAgentRequest,
 	ChatHubUpdateAgentRequest,
 	ChatHubUpdateConversationRequest,
+	ChatHubKnowledgeItemDto,
+	ChatHubCreateKnowledgeItemRequest,
 	EnrichedStructuredChunk,
 	ChatHubLLMProvider,
 	ChatProviderSettingsDto,
@@ -227,3 +229,33 @@ export function buildChatAttachmentUrl(
 ): string {
 	return `${context.baseUrl}/chat/conversations/${sessionId}/messages/${messageId}/attachments/${attachmentIndex}`;
 }
+
+export function buildKnowledgeItemAttachmentUrl(
+	context: IRestApiContext,
+	knowledgeItemId: string,
+): string {
+	return `${context.baseUrl}/chat/knowledge-items/${knowledgeItemId}/attachment`;
+}
+
+export const fetchKnowledgeItemsApi = async (
+	context: IRestApiContext,
+): Promise<ChatHubKnowledgeItemDto[]> => {
+	const apiEndpoint = '/chat/knowledge-items';
+	return await makeRestApiRequest<ChatHubKnowledgeItemDto[]>(context, 'GET', apiEndpoint);
+};
+
+export const createKnowledgeItemApi = async (
+	context: IRestApiContext,
+	payload: ChatHubCreateKnowledgeItemRequest,
+): Promise<ChatHubKnowledgeItemDto> => {
+	const apiEndpoint = '/chat/knowledge-items';
+	return await makeRestApiRequest<ChatHubKnowledgeItemDto>(context, 'POST', apiEndpoint, payload);
+};
+
+export const deleteKnowledgeItemApi = async (
+	context: IRestApiContext,
+	id: string,
+): Promise<void> => {
+	const apiEndpoint = `/chat/knowledge-items/${id}`;
+	await makeRestApiRequest(context, 'DELETE', apiEndpoint);
+};

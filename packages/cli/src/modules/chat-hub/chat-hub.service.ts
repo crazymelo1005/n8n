@@ -52,6 +52,7 @@ import { WorkflowFinderService } from '@/workflows/workflow-finder.service';
 
 import { ChatHubAgentService } from './chat-hub-agent.service';
 import { ChatHubCredentialsService } from './chat-hub-credentials.service';
+import type { ChatHubKnowledgeItem } from './chat-hub-knowledge-item.entity';
 import type { ChatHubMessage } from './chat-hub-message.entity';
 import type { ChatHubSession, IChatHubSession } from './chat-hub-session.entity';
 import { ChatHubWorkflowService } from './chat-hub-workflow.service';
@@ -185,7 +186,7 @@ export class ChatHubService {
 				const history = this.buildMessageHistory(messages, previousMessageId);
 
 				// Store attachments to populate 'id' field via BinaryDataService
-				processedAttachments = await this.chatHubAttachmentService.store(
+				processedAttachments = await this.chatHubAttachmentService.storeMessageAttachments(
 					sessionId,
 					messageId,
 					attachments,
@@ -301,7 +302,7 @@ export class ChatHubService {
 					// Store new attachments to populate 'id' field via BinaryDataService
 					newStoredAttachments =
 						payload.newAttachments.length > 0
-							? await this.chatHubAttachmentService.store(
+							? await this.chatHubAttachmentService.storeMessageAttachments(
 									sessionId,
 									messageId,
 									payload.newAttachments,
@@ -487,6 +488,7 @@ export class ChatHubService {
 			undefined,
 			tools,
 			attachments,
+			[],
 			timeZone,
 			trx,
 		);
@@ -502,6 +504,7 @@ export class ChatHubService {
 		systemMessage: string | undefined,
 		tools: INode[],
 		attachments: IBinaryData[],
+		knowledgeItems: ChatHubKnowledgeItem[],
 		timeZone: string,
 		trx: EntityManager,
 	) {
@@ -516,6 +519,7 @@ export class ChatHubService {
 			history,
 			message,
 			attachments,
+			knowledgeItems,
 			credentials,
 			model,
 			systemMessage,
@@ -577,6 +581,7 @@ export class ChatHubService {
 			systemMessage,
 			tools,
 			attachments,
+			agent.knowledgeItems ?? [],
 			timeZone,
 			trx,
 		);
@@ -1456,7 +1461,7 @@ export class ChatHubService {
 	}
 
 	async deleteAllSessions() {
-		await this.chatHubAttachmentService.deleteAll();
+		await this.chatHubAttachmentService.deleteAllMessageAttachments();
 		const result = await this.sessionRepository.deleteAll();
 		return result;
 	}
@@ -1508,7 +1513,7 @@ export class ChatHubService {
 	async deleteSession(userId: string, sessionId: ChatSessionId) {
 		await this.messageRepository.manager.transaction(async (trx) => {
 			await this.ensureConversation(userId, sessionId, trx);
-			await this.chatHubAttachmentService.deleteAllBySessionId(sessionId, trx);
+			await this.chatHubAttachmentService.deleteAllMessageAttachmentsBySessionId(sessionId, trx);
 			await this.sessionRepository.deleteChatHubSession(sessionId, trx);
 		});
 	}

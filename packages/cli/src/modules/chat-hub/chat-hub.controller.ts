@@ -11,6 +11,7 @@ import {
 	ChatHubCreateAgentRequest,
 	ChatHubUpdateAgentRequest,
 	ChatHubConversationsRequest,
+	ChatHubCreateKnowledgeItemRequest,
 	ViewableMimeTypes,
 } from '@n8n/api-types';
 import { Logger } from '@n8n/backend-common';
@@ -30,8 +31,10 @@ import { sanitizeFilename } from '@n8n/utils';
 import type { Response } from 'express';
 import { jsonStringify } from 'n8n-workflow';
 import { strict as assert } from 'node:assert';
+import type Stream from 'node:stream';
 
 import { ChatHubAgentService } from './chat-hub-agent.service';
+import { ChatHubKnowledgeItemService } from './chat-hub-knowledge-item.service';
 import { ChatHubAttachmentService } from './chat-hub.attachment.service';
 import { ChatHubModelsService } from './chat-hub.models.service';
 import { ChatHubService } from './chat-hub.service';
@@ -46,6 +49,7 @@ export class ChatHubController {
 		private readonly chatService: ChatHubService,
 		private readonly chatModelsService: ChatHubModelsService,
 		private readonly chatAgentService: ChatHubAgentService,
+		private readonly chatKnowledgeItemService: ChatHubKnowledgeItemService,
 		private readonly chatAttachmentService: ChatHubAttachmentService,
 		private readonly logger: Logger,
 	) {}
@@ -99,32 +103,9 @@ export class ChatHubController {
 		await this.chatService.ensureConversation(req.user.id, sessionId);
 
 		const [{ mimeType, fileName }, attachmentAsStreamOrBuffer] =
-			await this.chatAttachmentService.getAttachment(sessionId, messageId, attachmentIndex);
+			await this.chatAttachmentService.getMessageAttachment(sessionId, messageId, attachmentIndex);
 
-		res.setHeader('Content-Type', mimeType);
-
-		if (attachmentAsStreamOrBuffer.fileSize) {
-			res.setHeader('Content-Length', attachmentAsStreamOrBuffer.fileSize);
-		}
-
-		if (!mimeType || !ViewableMimeTypes.includes(mimeType.toLowerCase())) {
-			// Force download if file is not viewable
-			res.setHeader(
-				'Content-Disposition',
-				`attachment${fileName ? `; filename=${sanitizeFilename(fileName)}` : ''}`,
-			);
-		}
-
-		if (attachmentAsStreamOrBuffer.type === 'buffer') {
-			res.send(attachmentAsStreamOrBuffer.buffer);
-			return;
-		}
-
-		return await new Promise<void>((resolve, reject) => {
-			attachmentAsStreamOrBuffer.stream.on('end', resolve);
-			attachmentAsStreamOrBuffer.stream.on('error', reject);
-			attachmentAsStreamOrBuffer.stream.pipe(res);
-		});
+		return await this.sendAttachment(res, mimeType, fileName, attachmentAsStreamOrBuffer);
 	}
 
 	@GlobalScope('chatHub:message')
@@ -337,5 +318,90 @@ export class ChatHubController {
 		await this.chatAgentService.deleteAgent(agentId, req.user.id);
 
 		res.status(204).send();
+	}
+
+	@Get('/knowledge-items')
+	@GlobalScope('chatHub:message') // TODO: create scopes for knowledge items
+	async getKnowledgeItems(req: AuthenticatedRequest) {
+		return await this.chatKnowledgeItemService.getKnowledgeItemsByUserId(req.user.id);
+	}
+
+	@Post('/knowledge-items')
+	@GlobalScope('chatHub:message')
+	async createKnowledgeItem(
+		req: AuthenticatedRequest,
+		_res: Response,
+		@Body payload: ChatHubCreateKnowledgeItemRequest,
+	) {
+		return await this.chatKnowledgeItemService.createKnowledgeItem(
+			req.user,
+			payload.attachment ?? null,
+		);
+	}
+
+	@Delete('/knowledge-items/:id')
+	@GlobalScope('chatHub:message')
+	async deleteKnowledgeItem(
+		req: AuthenticatedRequest,
+		res: Response,
+		@Param('id') id: string,
+	): Promise<void> {
+		await this.chatKnowledgeItemService.deleteKnowledgeItem(id, req.user.id);
+
+		res.status(204).send();
+	}
+
+	@Get('/knowledge-items/:id/attachment')
+	@GlobalScope('chatHub:message')
+	async getKnowledgeItemAttachment(
+		req: AuthenticatedRequest,
+		res: Response,
+		@Param('id') id: string,
+	) {
+		// Verify user owns this knowledge item
+		await this.chatKnowledgeItemService.getKnowledgeItemById(id, req.user.id);
+
+		const [{ mimeType, fileName }, attachmentAsStreamOrBuffer] =
+			await this.chatAttachmentService.getKnowledgeItemAttachment(id);
+
+		return await this.sendAttachment(res, mimeType, fileName, attachmentAsStreamOrBuffer);
+	}
+
+	/**
+	 * Common method to send attachment data to the response.
+	 * Handles setting headers and streaming/buffering the content.
+	 */
+	private async sendAttachment(
+		res: Response,
+		mimeType: string,
+		fileName: string | undefined,
+		attachmentAsStreamOrBuffer:
+			| { type: 'buffer'; buffer: Buffer<ArrayBufferLike>; fileSize: number }
+			| { type: 'stream'; stream: Stream.Readable; fileSize: number },
+	): Promise<void> {
+		res.setHeader('Content-Type', mimeType);
+
+		if (attachmentAsStreamOrBuffer.fileSize) {
+			res.setHeader('Content-Length', attachmentAsStreamOrBuffer.fileSize);
+		}
+
+		if (!mimeType || !ViewableMimeTypes.includes(mimeType.toLowerCase())) {
+			// Force download if file is not viewable
+			res.setHeader(
+				'Content-Disposition',
+				`attachment${fileName ? `; filename=${sanitizeFilename(fileName)}` : ''}`,
+			);
+		}
+
+		if (attachmentAsStreamOrBuffer.type === 'buffer') {
+			res.send(attachmentAsStreamOrBuffer.buffer);
+			return;
+		}
+
+		return await new Promise<void>((resolve, reject) => {
+			attachmentAsStreamOrBuffer.stream.on('end', resolve);
+			attachmentAsStreamOrBuffer.stream.on('error', reject);
+			attachmentAsStreamOrBuffer.stream.pipe(res);
+		});
 	}
 }

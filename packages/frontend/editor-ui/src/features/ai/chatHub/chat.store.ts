@@ -822,7 +822,12 @@ export const useChatStore = defineStore(CHAT_STORE, () => {
 		if (agents.value?.['custom-agent']) {
 			agents.value['custom-agent'].models = agents.value['custom-agent'].models.map((model) =>
 				'agentId' in model && model.agentId === agentId
-					? { ...model, name: customAgent.name }
+					? {
+							...model,
+							name: customAgent.name,
+							description: customAgent.description,
+							icon: customAgent.icon,
+						}
 					: model,
 			);
 		}

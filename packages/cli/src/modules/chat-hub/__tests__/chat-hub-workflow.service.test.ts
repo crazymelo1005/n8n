@@ -9,6 +9,7 @@ import { ChatHubMessage } from '../chat-hub-message.entity';
 import { ChatHubSession } from '../chat-hub-session.entity';
 import { ChatHubAttachmentService } from '../chat-hub.attachment.service';
 import type { ChatHubMessageRepository } from '../chat-message.repository';
+import type { ChatHubKnowledgeItemRepository } from '../chat-hub-knowledge-item.repository';
 
 describe('ChatHubWorkflowService', () => {
 	const logger = mock<Logger>();
@@ -16,6 +17,7 @@ describe('ChatHubWorkflowService', () => {
 	const sharedWorkflowRepository = mock<SharedWorkflowRepository>();
 	const binaryDataService = mock<BinaryDataService>();
 	const messageRepository = mock<ChatHubMessageRepository>();
+	const knowledgeItemRepository = mock<ChatHubKnowledgeItemRepository>();
 
 	let chatHubAttachmentService: ChatHubAttachmentService;
 	let service: ChatHubWorkflowService;
@@ -24,7 +26,11 @@ describe('ChatHubWorkflowService', () => {
 		jest.resetAllMocks();
 
 		// Create real ChatHubAttachmentService with mocked dependencies
-		chatHubAttachmentService = new ChatHubAttachmentService(binaryDataService, messageRepository);
+		chatHubAttachmentService = new ChatHubAttachmentService(
+			binaryDataService,
+			messageRepository,
+			knowledgeItemRepository,
+		);
 
 		service = new ChatHubWorkflowService(
 			logger,
@@ -62,6 +68,7 @@ describe('ChatHubWorkflowService', () => {
 					'project-789',
 					mockHistory,
 					'Hello',
+					[],
 					[],
 					{ openAiApi: { id: 'cred-123', name: 'OpenAI' } },
 					{ provider: 'openai', model: 'gpt-4-turbo' },
@@ -115,6 +122,7 @@ describe('ChatHubWorkflowService', () => {
 					'project-789',
 					mockHistory,
 					'Hello',
+					[],
 					[],
 					{ openAiApi: { id: 'cred-123', name: 'OpenAI' } },
 					{ provider: 'openai', model: 'gpt-4-turbo' },
@@ -180,6 +188,7 @@ describe('ChatHubWorkflowService', () => {
 					mockHistory,
 					'Hello',
 					[],
+					[],
 					{ openAiApi: { id: 'cred-123', name: 'OpenAI' } },
 					{ provider: 'openai', model: 'gpt-4-turbo' },
 					undefined,
@@ -224,6 +233,7 @@ describe('ChatHubWorkflowService', () => {
 					'project-789',
 					mockHistory,
 					'Hello',
+					[],
 					[],
 					{ openAiApi: { id: 'cred-123', name: 'OpenAI' } },
 					{ provider: 'openai', model: 'gpt-4-turbo' },
@@ -278,6 +288,7 @@ describe('ChatHubWorkflowService', () => {
 					'project-789',
 					mockHistory,
 					'Hello',
+					[],
 					[],
 					{ openAiApi: { id: 'cred-123', name: 'OpenAI' } },
 					{ provider: 'openai', model: 'gpt-4-turbo' },
@@ -336,6 +347,7 @@ describe('ChatHubWorkflowService', () => {
 					'project-789',
 					mockHistory,
 					'Hello',
+					[],
 					[],
 					{ openAiApi: { id: 'cred-123', name: 'OpenAI' } },
 					{ provider: 'openai', model: 'gpt-4-turbo' },
@@ -418,6 +430,7 @@ describe('ChatHubWorkflowService', () => {
 					mockHistory,
 					'Hello',
 					[],
+					[],
 					{ openAiApi: { id: 'cred-123', name: 'OpenAI' } },
 					{ provider: 'openai', model: 'gpt-4-turbo' },
 					undefined,
@@ -494,6 +507,7 @@ describe('ChatHubWorkflowService', () => {
 					mockHistory,
 					'Hello',
 					[],
+					[],
 					{ openAiApi: { id: 'cred-123', name: 'OpenAI' } },
 					{ provider: 'openai', model: 'gpt-4-turbo' },
 					undefined,
@@ -551,6 +565,7 @@ describe('ChatHubWorkflowService', () => {
 					mockHistory,
 					'Hello',
 					[],
+					[],
 					{ openAiApi: { id: 'cred-123', name: 'OpenAI' } },
 					{ provider: 'openai', model: 'gpt-4-turbo' },
 					undefined,
@@ -596,6 +611,7 @@ describe('ChatHubWorkflowService', () => {
 					'project-789',
 					mockHistory,
 					'Hello',
+					[],
 					[],
 					{ openAiApi: { id: 'cred-123', name: 'OpenAI' } },
 					{ provider: 'openai', model: 'gpt-4' },

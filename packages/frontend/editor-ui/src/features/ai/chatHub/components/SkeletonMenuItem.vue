@@ -10,7 +10,7 @@
 	display: flex;
 	align-items: center;
 	padding: var(--spacing--3xs);
-	gap: var(--spacing--3xs);
+	gap: var(--spacing--2xs);
 	border-radius: var(--spacing--4xs);
 	height: 30px;
 }

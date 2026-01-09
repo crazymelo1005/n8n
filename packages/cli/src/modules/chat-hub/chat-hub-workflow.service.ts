@@ -37,6 +37,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 
 import { inE2ETests } from '../../constants';
+import type { ChatHubKnowledgeItem } from './chat-hub-knowledge-item.entity';
 import { ChatHubMessage } from './chat-hub-message.entity';
 import { getModelMetadata, NODE_NAMES, PROVIDER_NODE_TYPE_MAP } from './chat-hub.constants';
 import { MessageRecord, type ContentBlock, type ChatTriggerResponseMode } from './chat-hub.types';
@@ -59,6 +60,7 @@ export class ChatHubWorkflowService {
 		history: ChatHubMessage[],
 		humanMessage: string,
 		attachments: IBinaryData[],
+		knowledgeItems: ChatHubKnowledgeItem[],
 		credentials: INodeCredentials,
 		model: ChatHubBaseLLMModel,
 		systemMessage: string | undefined,
@@ -81,6 +83,7 @@ export class ChatHubWorkflowService {
 				history,
 				humanMessage,
 				attachments,
+				knowledgeItems,
 				credentials,
 				model,
 				systemMessage: systemMessage ?? this.getBaseSystemMessage(timeZone),
@@ -262,6 +265,7 @@ export class ChatHubWorkflowService {
 		history,
 		humanMessage,
 		attachments,
+		knowledgeItems,
 		credentials,
 		model,
 		systemMessage,
@@ -272,16 +276,20 @@ export class ChatHubWorkflowService {
 		history: ChatHubMessage[];
 		humanMessage: string;
 		attachments: IBinaryData[];
+		knowledgeItems: ChatHubKnowledgeItem[];
 		credentials: INodeCredentials;
 		model: ChatHubBaseLLMModel;
 		systemMessage: string;
 		tools: INode[];
 	}) {
+		// Build knowledge context blocks (both text and images)
+		const knowledgeBlocks = await this.buildKnowledgeContext(knowledgeItems);
+
 		const chatTriggerNode = this.buildChatTriggerNode();
 		const toolsAgentNode = this.buildToolsAgentNode(model, systemMessage);
 		const modelNode = this.buildModelNode(credentials, model);
 		const memoryNode = this.buildMemoryNode(20);
-		const restoreMemoryNode = await this.buildRestoreMemoryNode(history, model);
+		const restoreMemoryNode = await this.buildRestoreMemoryNode(history, model, knowledgeBlocks);
 		const clearMemoryNode = this.buildClearMemoryNode();
 		const mergeNode = this.buildMergeNode();
 
@@ -676,8 +684,24 @@ ${this.getSystemMessageMetadata(timeZone)}`;
 	private async buildRestoreMemoryNode(
 		history: ChatHubMessage[],
 		model: ChatHubBaseLLMModel,
+		knowledgeBlocks: ContentBlock[] = [],
 	): Promise<INode> {
 		const messageValues = await this.buildMessageValuesWithAttachments(history, model);
+
+		// If there are knowledge blocks, add them as a synthetic user message
+		if (knowledgeBlocks.length > 0) {
+			messageValues.push({
+				type: 'user',
+				message: [
+					{
+						type: 'text',
+						text: `## Background Knowledge for Conversation\n\nWhen you respond, take these ${knowledgeBlocks.length} materials into consideration.`,
+					},
+					...knowledgeBlocks,
+				],
+				hideFromUI: true,
+			});
+		}
 
 		return {
 			parameters: {
@@ -693,6 +717,63 @@ ${this.getSystemMessageMetadata(timeZone)}`;
 			id: uuidv4(),
 			name: NODE_NAMES.RESTORE_CHAT_MEMORY,
 		};
+	}
+
+	/**
+	 * Builds knowledge context from knowledge items as content blocks
+	 * All items (text and images) will be added as a user message in memory
+	 */
+	private async buildKnowledgeContext(
+		knowledgeItems: ChatHubKnowledgeItem[],
+	): Promise<ContentBlock[]> {
+		if (knowledgeItems.length === 0) {
+			return [];
+		}
+
+		const contentBlocks: ContentBlock[] = [];
+
+		for (const item of knowledgeItems) {
+			if (!item.attachment) {
+				continue;
+			}
+
+			try {
+				// Handle text-based files
+				if (this.isTextFile(item.attachment.mimeType)) {
+					const buffer = await this.chatHubAttachmentService.getAsBuffer(item.attachment);
+					const content = buffer.toString('utf-8');
+					const fileName = item.attachment.fileName ?? 'knowledge item';
+
+					contentBlocks.push({
+						type: 'text',
+						text: `### ${fileName}\n\n${content}`,
+					});
+				} else {
+					// Handle images and other binary files
+					const url = await this.chatHubAttachmentService.getDataUrl(item.attachment);
+					const fileName = item.attachment.fileName ?? 'attachment';
+
+					// Add a text block describing the file
+					contentBlocks.push({
+						type: 'text',
+						text: `### ${fileName}`,
+					});
+
+					// Add the image/file as data URL
+					contentBlocks.push({
+						type: 'image_url',
+						image_url: url,
+					});
+				}
+			} catch (error) {
+				this.logger.warn(
+					`Failed to process knowledge item ${item.id}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+				);
+				// Continue processing other knowledge items
+			}
+		}
+
+		return contentBlocks;
 	}
 
 	private async buildMessageValuesWithAttachments(

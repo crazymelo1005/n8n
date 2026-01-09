@@ -1,7 +1,16 @@
 import { ChatHubLLMProvider, AgentIconOrEmoji } from '@n8n/api-types';
 import { User, CredentialsEntity, JsonColumn, WithTimestamps } from '@n8n/db';
-import { Column, Entity, ManyToOne, JoinColumn, PrimaryGeneratedColumn } from '@n8n/typeorm';
+import {
+	Column,
+	Entity,
+	ManyToOne,
+	ManyToMany,
+	JoinTable,
+	JoinColumn,
+	PrimaryGeneratedColumn,
+} from '@n8n/typeorm';
 import { INode } from 'n8n-workflow';
+import type { ChatHubKnowledgeItem } from './chat-hub-knowledge-item.entity';
 
 export interface IChatHubAgent {
 	id: string;
@@ -90,4 +99,23 @@ export class ChatHubAgent extends WithTimestamps {
 	 */
 	@JsonColumn({ default: '[]' })
 	tools: INode[];
+
+	/**
+	 * The knowledge items attached to the agent.
+	 */
+	@ManyToMany('ChatHubKnowledgeItem')
+	@JoinTable({
+		name: 'chat_hub_agent_knowledge_items',
+		joinColumn: { name: 'agentId' },
+		inverseJoinColumn: { name: 'knowledgeItemId' },
+	})
+	knowledgeItems?: ChatHubKnowledgeItem[];
+
+	toJSON() {
+		const { knowledgeItems, ...rest } = this;
+		return {
+			...rest,
+			knowledgeItemIds: knowledgeItems?.map((item) => item.id) ?? [],
+		};
+	}
 }

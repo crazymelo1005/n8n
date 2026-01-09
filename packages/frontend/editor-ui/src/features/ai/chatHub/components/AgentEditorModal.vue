@@ -4,7 +4,7 @@ import { useMessage } from '@/app/composables/useMessage';
 import { useToast } from '@/app/composables/useToast';
 import { useChatStore } from '@/features/ai/chatHub/chat.store';
 import { useRootStore } from '@n8n/stores/useRootStore';
-import { fetchChatModelsApi } from '@/features/ai/chatHub/chat.api';
+import { fetchChatModelsApi, fetchKnowledgeItemsApi } from '@/features/ai/chatHub/chat.api';
 import ModelSelector from '@/features/ai/chatHub/components/ModelSelector.vue';
 import {
 	emptyChatModelsResponse,
@@ -27,7 +27,12 @@ import ToolsSelector from './ToolsSelector.vue';
 import { personalAgentDefaultIcon, isLlmProviderModel } from '@/features/ai/chatHub/chat.utils';
 import { useCustomAgent } from '@/features/ai/chatHub/composables/useCustomAgent';
 import { useUIStore } from '@/app/stores/ui.store';
-import { TOOLS_SELECTOR_MODAL_KEY } from '@/features/ai/chatHub/constants';
+import {
+	TOOLS_SELECTOR_MODAL_KEY,
+	KNOWLEDGE_ITEMS_SELECTOR_MODAL_KEY,
+} from '@/features/ai/chatHub/constants';
+import type { ChatHubKnowledgeItemDto } from '@n8n/api-types';
+import KnowledgeItemsSelector from './KnowledgeItemsSelector.vue';
 
 const props = defineProps<{
 	modalName: string;
@@ -56,6 +61,7 @@ const isSaving = ref(false);
 const isDeleting = ref(false);
 const isOpened = ref(false);
 const tools = ref<INode[]>([]);
+const knowledgeItems = ref<ChatHubKnowledgeItemDto[]>([]);
 const agents = ref<ChatModelsResponse>(emptyChatModelsResponse);
 const isLoadingAgents = ref(false);
 const nameInputRef = useTemplateRef('nameInput');
@@ -121,7 +127,7 @@ watch(
 
 watch(
 	customAgent,
-	(agent) => {
+	async (agent) => {
 		if (!agent) return;
 
 		icon.value = agent.icon ?? personalAgentDefaultIcon;
@@ -133,6 +139,18 @@ watch(
 
 		if (agent.credentialId) {
 			agentSelectedCredentials.value[agent.provider] = agent.credentialId;
+		}
+
+		// Load knowledge items if the agent has any
+		if (agent.knowledgeItemIds && agent.knowledgeItemIds.length > 0) {
+			try {
+				const allKnowledgeItems = await fetchKnowledgeItemsApi(useRootStore().restApiContext);
+				knowledgeItems.value = allKnowledgeItems.filter((item) =>
+					agent.knowledgeItemIds.includes(item.id),
+				);
+			} catch (error) {
+				toast.showError(error, 'Failed to load knowledge items');
+			}
 		}
 	},
 	{ immediate: true },
@@ -193,6 +211,7 @@ async function onSave() {
 			...selectedModel.value,
 			credentialId: credentialIdForSelectedModelProvider.value,
 			tools: tools.value,
+			knowledgeItemIds: knowledgeItems.value.map((item) => item.id),
 			icon: icon.value,
 		};
 
@@ -260,6 +279,18 @@ function onSelectTools() {
 			selected: tools.value,
 			onConfirm: (newTools: INode[]) => {
 				tools.value = newTools;
+			},
+		},
+	});
+}
+
+function onSelectKnowledgeItems() {
+	uiStore.openModalWithData({
+		name: KNOWLEDGE_ITEMS_SELECTOR_MODAL_KEY,
+		data: {
+			selected: knowledgeItems.value,
+			onConfirm: (newItems: ChatHubKnowledgeItemDto[]) => {
+				knowledgeItems.value = newItems;
 			},
 		},
 	});
@@ -381,6 +412,18 @@ function onSelectTools() {
 						</div>
 					</N8nInputLabel>
 				</div>
+
+				<N8nInputLabel
+					input-name="agent-knowledge"
+					:label="i18n.baseText('chatHub.agent.editor.knowledgeItems.label')"
+					:required="false"
+				>
+					<KnowledgeItemsSelector
+						:disabled="false"
+						:selected="knowledgeItems"
+						@click="onSelectKnowledgeItems"
+					/>
+				</N8nInputLabel>
 			</div>
 		</template>
 		<template #footer>

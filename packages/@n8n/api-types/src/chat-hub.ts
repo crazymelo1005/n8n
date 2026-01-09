@@ -4,6 +4,7 @@ import {
 	type JINA_AI_TOOL_NODE_TYPE,
 	type SERP_API_TOOL_NODE_TYPE,
 	type INode,
+	type IBinaryData,
 	INodeSchema,
 } from 'n8n-workflow';
 import { z } from 'zod';
@@ -368,6 +369,7 @@ export class ChatHubUpdateConversationRequest extends Z.class({
 
 export type ChatHubMessageType = 'human' | 'ai' | 'system' | 'tool' | 'generic';
 export type ChatHubMessageStatus = 'success' | 'error' | 'running' | 'cancelled';
+export type ChatHubKnowledgeItemType = 'attachment';
 
 export type ChatSessionId = string; // UUID
 export type ChatMessageId = string; // UUID
@@ -442,6 +444,7 @@ export interface ChatHubAgentDto {
 	provider: ChatHubLLMProvider;
 	model: string;
 	tools: INode[];
+	knowledgeItemIds: string[];
 	createdAt: string;
 	updatedAt: string;
 }
@@ -455,6 +458,7 @@ export class ChatHubCreateAgentRequest extends Z.class({
 	provider: chatHubLLMProviderSchema,
 	model: z.string().max(64),
 	tools: z.array(INodeSchema),
+	knowledgeItemIds: z.array(z.string()).optional(),
 }) {}
 
 export class ChatHubUpdateAgentRequest extends Z.class({
@@ -466,6 +470,20 @@ export class ChatHubUpdateAgentRequest extends Z.class({
 	provider: chatHubLLMProviderSchema.optional(),
 	model: z.string().max(64).optional(),
 	tools: z.array(INodeSchema).optional(),
+	knowledgeItemIds: z.array(z.string()).optional(),
+}) {}
+
+export interface ChatHubKnowledgeItemDto {
+	id: string;
+	type: ChatHubKnowledgeItemType;
+	ownerId: string;
+	attachment: IBinaryData | null;
+	createdAt: string;
+	updatedAt: string;
+}
+
+export class ChatHubCreateKnowledgeItemRequest extends Z.class({
+	attachment: chatAttachmentSchema.nullable(),
 }) {}
 
 export interface EnrichedStructuredChunk extends StructuredChunk {
