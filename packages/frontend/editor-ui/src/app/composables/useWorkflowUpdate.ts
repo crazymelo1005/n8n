@@ -44,7 +44,7 @@ export function useWorkflowUpdate() {
 	function capturePinnedDataById(): Map<string, INodeExecutionData[]> {
 		const pinnedDataById = new Map<string, INodeExecutionData[]>();
 		workflowsStore.allNodes.forEach((node) => {
-			const pinData = workflowsStore.pinDataByNodeName(node.name);
+			const pinData = workflowsStore.workflow.pinData?.[node.name];
 			if (pinData) {
 				pinnedDataById.set(node.id, pinData);
 			}
